@@ -1,12 +1,14 @@
 from django.shortcuts import render
 from django.urls import reverse_lazy, reverse
-from .models import Ads,Comment
+from .models import Ads,Comment,Favorite
 from ads.forms import CreateForm,CommentForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.views import View
-
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.db.utils import IntegrityError
 
 
 class AdListView(View):
@@ -16,7 +18,11 @@ class AdListView(View):
     def get(self,request):
 
         ads_list = Ads.objects.all()
-        context = {'ads_list' : ads_list}
+        favorites = list()
+        if request.user.is_authenticated:
+            rows = request.user.favorite_ads.values('id')
+            favorites = [row['id'] for row in rows]
+        context = {'ads_list' : ads_list, 'favorites' : favorites}
 
         return render(request, self.template_name, context)
 
@@ -150,6 +156,28 @@ def stream_file(request, pk):
     response['Content-Length'] = len(pic.picture)
     response.write(pic.picture)
     return response
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AddFavoriteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        ad = get_object_or_404(Ads, pk=pk)
+        favorite = Favorite(user=request.user, ads=ad)
+        try:
+            favorite.save()
+        except IntegrityError as e:
+            pass
+        return HttpResponse()
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DeleteFavoriteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        ad = get_object_or_404(Ads, id=pk)
+        try:
+            favorite = Favorite.objects.get(user=request.user, ads=ad).delete()
+        except Favorite.DoesNotExist as e:
+            pass
+        return HttpResponse()
 
 
 

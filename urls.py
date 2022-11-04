@@ -11,5 +11,7 @@ urlpatterns = [
     path('ad/<int:pk>/comment', views.CommentCreateView.as_view(), name='ad_comment_create'),
     path('comment/<int:pk>/delete', views.CommentDeleteView.as_view(), name='ad_comment_delete'),
     path('pic_picture/<int:pk>', views.stream_file, name='pic_picture'),
+    path('ad/<int:pk>/favorite', views.AddFavoriteView.as_view(), name='favorite_ad'),
+    path('ad/<int:pk>/unfavorite', views.DeleteFavoriteView.as_view(), name='unfavorite_ad'),
 ]
 # We use reverse_lazy in urls.py to delay looking up the view until all the paths are defined
