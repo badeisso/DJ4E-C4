@@ -15,7 +15,7 @@ class CreateForm(forms.ModelForm):
 
     class Meta:
 
-        fields = ['title', 'text', 'price', 'picture']
+        fields = ['title', 'text', 'price', 'picture','tags']
         model = Ads
 
     def clean(self):
@@ -40,6 +40,7 @@ class CreateForm(forms.ModelForm):
 
         if commit:
             instance.save()
+            self.save_m2m()
 
         return instance
 

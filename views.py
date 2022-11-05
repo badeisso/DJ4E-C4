@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from django.urls import reverse_lazy, reverse
 from .models import Ads,Comment,Favorite
 from ads.forms import CreateForm,CommentForm
@@ -9,6 +8,8 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.db.utils import IntegrityError
+from django.db.models import Q
+from django.contrib.humanize.templatetags.humanize import naturaltime
 
 
 class AdListView(View):
@@ -16,13 +17,25 @@ class AdListView(View):
     template_name = 'ads/ads_list.html'
     
     def get(self,request):
+        search = request.GET.get("search", False)
+        if search:
+            queryset = Q(title__contains=search)
+            queryset.add(Q(text__contains=search), Q.OR)
+            queryset.add(Q(tags__name__in=[search]), Q.OR)
+            ads_list = Ads.objects.filter(queryset).select_related().distinct().order_by('-updated_at')[:10]
 
-        ads_list = Ads.objects.all()
+        else:
+            ads_list = Ads.objects.all().order_by('updated_at')[0:10]
+
+        for object in ads_list:
+            object.natural_updated = naturaltime(object.updated_at)
+
+
         favorites = list()
         if request.user.is_authenticated:
             rows = request.user.favorite_ads.values('id')
             favorites = [row['id'] for row in rows]
-        context = {'ads_list' : ads_list, 'favorites' : favorites}
+        context = {'ads_list' : ads_list, 'favorites' : favorites, 'search' : search}
 
         return render(request, self.template_name, context)
 
@@ -65,6 +78,7 @@ class AdCreateView(LoginRequiredMixin,View):
         object = form.save(commit=False)
         object.owner = self.request.user
         object.save()
+        form.save_m2m()
 
         return redirect(self.success_url)
 
@@ -93,6 +107,7 @@ class AdUpdateView(LoginRequiredMixin,View):
 
         ads = form.save(commit=False)
         ads.save()
+        form.save_m2m()
 
         return redirect(reverse("ads:ad_detail", args=[pk]))
 
